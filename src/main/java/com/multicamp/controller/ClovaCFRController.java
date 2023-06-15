@@ -30,7 +30,7 @@ public class ClovaCFRController {
 	
 	private String clientId="wvaof3v62r";
 	private String clientSecret="ywMnwBxqGfNu2hdE70KUEsZ23J7ZuOQkyduBCK6C";
-	
+	private String api_url = "https://naveropenapi.apigw.ntruss.com/vision/v1/celebrity";
 	private Logger log=LoggerFactory.getLogger(getClass());
 
 	
@@ -82,8 +82,43 @@ public class ClovaCFRController {
 			pw.append("Content-Type: "+ URLConnection.guessContentTypeFromName(fileName)).append(line_feed);
 			pw.append(line_feed);
 			pw.flush();
-
+			//이미지 파일 데이터를 1byte기반 스트림을 이용해서 네이버 서버로 전송한다
 			FileInputStream fis=new FileInputStream(f);
+			byte[] buffer=new byte[1024*4];
+			int n=0;
+			while((n=fis.read(buffer))!=-1){//파일끝에 도달하면 -1반환
+				//파일을 읽어서 buffer배열에 파일 데이터를 담는다
+				out.write(buffer, 0, n);
+			}
+			out.flush();
+			fis.close();
+
+			pw.append(line_feed).flush();
+
+			pw.append("--"+boundary+"--").append(line_feed).flush();
+			pw.close();
+			out.close();
+			//서버에 이미지 전송 끝//////////////////
+
+			//네이버 서버가 보내오는 응답데이터를 받자
+			int resCode=con.getResponseCode();//200
+
+			log.info("response code={}", resCode);
+			BufferedReader br=null;
+			if(resCode==200) {
+				br=new BufferedReader(new InputStreamReader(con.getInputStream(),"UTF-8"));
+			}else {
+				br=new BufferedReader(new InputStreamReader(con.getErrorStream(),"UTF-8"));
+			}
+
+			StringBuilder buf=new StringBuilder();
+			String str="";
+			while((str=br.readLine())!=null) {
+				buf.append(str);
+				log.info("{}",str);
+			}
+			br.close();
+			map.put("result", buf.toString());
 		} catch (Exception e) {
 			e.printStackTrace();
 			map.put("result", "error: "+e.getMessage());
